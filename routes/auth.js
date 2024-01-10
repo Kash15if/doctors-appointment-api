@@ -26,7 +26,7 @@ router.post("/signup", async (req, res) => {
                 replacements: { username }, // Replace with the actual username you are searching for
             })
 
-        console.log()
+
         if (existingUser[1].rowCount) {
             return res.status(400).json({ message: 'Email already in use. Please choose another email.' });
         }
@@ -49,7 +49,40 @@ router.post("/signup", async (req, res) => {
 
 
 // login
-router.post("/login", verifyToken, (req, res) => { })
+router.post("/login", async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        // Find the user by username
+        const seqResp = await sequelize.query(
+            'SELECT * FROM public.users WHERE username = :username',
+            {
+                replacements: { username }, // Replace with the actual username you are searching for
+            })
+
+        const user = seqResp.length > 0 && seqResp[0].length > 0 ? seqResp[0][0] : null
+        console.log(user)
+        if (!user) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        // Compare the provided password with the hashed password in the database
+        console.log(password, user.pwd)
+        const isPasswordValid = await bcrypt.compare(password, user.pwd);
+
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        // Generate a JWT token with the user's username as the payload
+        const token = generateToken({ username: user.username });
+
+        res.json({ message: 'Login successful', token });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+})
 
 
 
